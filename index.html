@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quadro da Laura</title>
+  <style>
+    body {
+      font-family: 'Comic Sans MS', sans-serif;
+      background: #FFF9F0;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+
+    h1 {
+      margin-top: 20px;
+      color: #444;
+    }
+
+    table {
+      width: 90%;
+      margin: 20px auto;
+      border-collapse: collapse;
+      background: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border: 1px solid #eee;
+      padding: 12px;
+      font-size: 1.4em;
+    }
+
+    th {
+      background: #FFE6E6;
+    }
+
+    td {
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .emoji {
+      transition: transform 0.2s;
+    }
+
+    .emoji:hover {
+      transform: scale(1.3);
+    }
+
+    .summary {
+      font-size: 1.4em;
+      margin-top: 30px;
+    }
+
+    .button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 1.2em;
+      border: none;
+      border-radius: 6px;
+      background-color: #FFB6B9;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .button:hover {
+      background-color: #ff8a8d;
+    }
+
+    .highlight {
+      animation: flash 0.6s ease;
+    }
+
+    @keyframes flash {
+      0% { background-color: #d4edda; }
+      100% { background-color: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Quadro da Laura ✨</h1>
+  <table id="taskTable">
+    <thead>
+      <tr>
+        <th>Tarefa</th>
+        <th>Seg</th>
+        <th>Ter</th>
+        <th>Qua</th>
+        <th>Qui</th>
+        <th>Sex</th>
+        <th>Sáb</th>
+        <th>Dom</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Escovar os dentes</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>Arrumar mochila</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>Fazer lição</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>Ler livro</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      <tr><td>Ser gentil</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+    </tbody>
+    <tfoot>
+      <tr id="dailyPointsRow">
+        <td><strong>Pontos do dia</strong></td>
+        <td id="dp-1">0</td>
+        <td id="dp-2">0</td>
+        <td id="dp-3">0</td>
+        <td id="dp-4">0</td>
+        <td id="dp-5">0</td>
+        <td id="dp-6">0</td>
+        <td id="dp-7">0</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="summary">
+    Pontos da semana: <span id="weeklyPoints">0</span>
+  </div>
+
+  <button class="button" onclick="resetBoard()">Resetar semana</button>
+  <button class="button" onclick="exportData()">Exportar semana</button>
+
+  <audio id="sound-happy" src="assets/sounds/moods/happy.mp3" preload="auto"></audio>
+  <audio id="sound-good" src="assets/sounds/moods/good.mp3" preload="auto"></audio>
+  <audio id="sound-neutral" src="assets/sounds/moods/neutral.mp3" preload="auto"></audio>
+  <audio id="sound-sad" src="assets/sounds/moods/sad.mp3" preload="auto"></audio>
+  <audio id="sound-very-sad" src="assets/sounds/moods/very-sad.mp3" preload="auto"></audio>
+
+  <script>
+    const emojis = ['😍', '🙂', '😐', '🙁', '😭'];
+    const pointsMap = {
+      '😍': 3,
+      '🙂': 2,
+      '😐': 1,
+      '🙁': -2,
+      '😭': -3
+    };
+
+    const table = document.getElementById('taskTable');
+    const weeklyPoints = document.getElementById('weeklyPoints');
+
+    function loadFromStorage() {
+      const data = JSON.parse(localStorage.getItem('lauraBoard') || '{}');
+      for (let i = 1; i < table.rows.length - 1; i++) {
+        for (let j = 1; j < table.rows[i].cells.length; j++) {
+          const key = `cell-${i}-${j}`;
+          if (data[key]) {
+            table.rows[i].cells[j].textContent = data[key];
+          }
+        }
+      }
+      updatePoints();
+    }
+
+    function saveToStorage() {
+      const data = {};
+      for (let i = 1; i < table.rows.length - 1; i++) {
+        for (let j = 1; j < table.rows[i].cells.length; j++) {
+          const key = `cell-${i}-${j}`;
+          data[key] = table.rows[i].cells[j].textContent;
+        }
+      }
+      localStorage.setItem('lauraBoard', JSON.stringify(data));
+      updatePoints();
+    }
+
+    function updatePoints() {
+      let total = 0;
+      let dailyTotals = [0, 0, 0, 0, 0, 0, 0];
+      for (let i = 1; i < table.rows.length - 1; i++) {
+        for (let j = 1; j <= 7; j++) {
+          const val = table.rows[i].cells[j].textContent;
+          if (pointsMap[val] !== undefined) {
+            total += pointsMap[val];
+            dailyTotals[j - 1] += pointsMap[val];
+          }
+        }
+      }
+      weeklyPoints.textContent = total;
+      dailyTotals.forEach((val, idx) => {
+        const cell = document.getElementById(`dp-${idx + 1}`);
+        cell.textContent = val;
+        cell.classList.add('highlight');
+        setTimeout(() => cell.classList.remove('highlight'), 600);
+      });
+    }
+
+    function playSound(emoji) {
+      try {
+        // Para todos os sons antes de tocar o novo
+        const allSounds = [
+          document.getElementById('sound-happy'),
+          document.getElementById('sound-good'),
+          document.getElementById('sound-neutral'),
+          document.getElementById('sound-sad'),
+          document.getElementById('sound-very-sad')
+        ];
+        
+        allSounds.forEach(sound => {
+          if (sound) {
+            sound.pause();
+            sound.currentTime = 0;
+          }
+        });
+
+        let sound;
+        switch(emoji) {
+          case '😍':
+            sound = document.getElementById('sound-happy');
+            break;
+          case '🙂':
+            sound = document.getElementById('sound-good');
+            break;
+          case '😐':
+            sound = document.getElementById('sound-neutral');
+            break;
+          case '🙁':
+            sound = document.getElementById('sound-sad');
+            break;
+          case '😭':
+            sound = document.getElementById('sound-very-sad');
+            break;
+        }
+        if (sound) {
+          sound.play().catch(() => {
+            // Ignora erros de reprodução de áudio
+          });
+        }
+      } catch (e) {
+        // Ignora erros de áudio
+      }
+    }
+
+    table.addEventListener('click', function (e) {
+      const cell = e.target;
+      if (cell.tagName === 'TD' && cell.cellIndex > 0 && cell.parentElement.rowIndex < table.rows.length - 1) {
+        const current = cell.textContent;
+        const next = emojis[(emojis.indexOf(current) + 1) % emojis.length];
+        cell.textContent = next;
+        playSound(next);
+        saveToStorage();
+      }
+    });
+
+    function resetBoard() {
+      if (confirm('Deseja limpar o quadro da semana?')) {
+        for (let i = 1; i < table.rows.length - 1; i++) {
+          for (let j = 1; j < table.rows[i].cells.length; j++) {
+            table.rows[i].cells[j].textContent = '';
+          }
+        }
+        saveToStorage();
+      }
+    }
+
+    function exportData() {
+      const data = JSON.stringify(localStorage.getItem('lauraBoard'), null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'laura_board.json';
+      link.click();
+    }
+
+    loadFromStorage();
+  </script>
+</body>
+</html>
