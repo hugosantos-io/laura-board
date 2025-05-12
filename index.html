@@ -274,5 +274,15 @@
 
     loadFromStorage();
   </script>
+  <script>
+    // Tratamento global de erros
+    window.addEventListener('error', function(e) {
+      if (e.message && e.message.includes('runtime.lastError')) {
+        e.preventDefault();
+        e.stopPropagation();
+        return true;
+      }
+    }, true);
+  </script>
 </body>
 </html>
