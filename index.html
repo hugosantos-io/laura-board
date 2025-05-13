@@ -55,6 +55,70 @@
       transform: scale(1.3);
     }
 
+    .emoji-list {
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      z-index: 1000;
+      opacity: 0;
+      transform: scale(0.95);
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+    }
+    .emoji-list.open {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+
+    .emoji-list img {
+      width: 40px;
+      height: 40px;
+      padding: 5px;
+      cursor: pointer;
+      display: inline-block;
+      transition: transform 0.2s;
+    }
+
+    .emoji-list img:hover {
+      transform: scale(1.2);
+    }
+
+    td img {
+      width: 30px;
+      height: 30px;
+      vertical-align: middle;
+      transition: transform 0.3s;
+    }
+    .pop {
+      animation: pop 0.4s;
+    }
+    @keyframes pop {
+      0% { transform: scale(0.2); }
+      60% { transform: scale(1.3); }
+      100% { transform: scale(1); }
+    }
+    /* Confetes */
+    .confetti {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      width: 100vw;
+      height: 100vh;
+      z-index: 2000;
+    }
+    .confetti-piece {
+      position: absolute;
+      width: 12px;
+      height: 18px;
+      border-radius: 3px;
+      opacity: 0.7;
+    }
+
     .summary {
       font-size: 1.4em;
       margin-top: 30px;
@@ -180,15 +244,18 @@
   <audio id="sound-sad" src="assets/sounds/moods/sad.mp3" preload="auto"></audio>
   <audio id="sound-very-sad" src="assets/sounds/moods/very-sad.mp3" preload="auto"></audio>
 
+  <div id="emojiList" class="emoji-list"></div>
+  <div id="confetti" class="confetti"></div>
+
   <script>
-    const emojis = ['😍', '🙂', '😐', '🙁', '😭'];
-    const pointsMap = {
-      '😍': 3,
-      '🙂': 2,
-      '😐': 1,
-      '🙁': -2,
-      '😭': -3
-    };
+    const moods = [
+      { image: '0.crying.png', points: -3 },
+      { image: '1.sad.png', points: -2 },
+      { image: '2.meh.png', points: 1 },
+      { image: '2.okay.png', points: 1 },
+      { image: '3.love.png', points: 3 }
+    ];
+    const imagePath = 'assets/moods/';
 
     const table = document.getElementById('taskTable');
     const weeklyPoints = document.getElementById('weeklyPoints');
@@ -198,8 +265,11 @@
       for (let i = 1; i < table.rows.length - 1; i++) {
         for (let j = 1; j < table.rows[i].cells.length; j++) {
           const key = `cell-${i}-${j}`;
+          table.rows[i].cells[j].innerHTML = '';
           if (data[key]) {
-            table.rows[i].cells[j].textContent = data[key];
+            const img = document.createElement('img');
+            img.src = imagePath + data[key];
+            table.rows[i].cells[j].appendChild(img);
           }
         }
       }
@@ -211,7 +281,8 @@
       for (let i = 1; i < table.rows.length - 1; i++) {
         for (let j = 1; j < table.rows[i].cells.length; j++) {
           const key = `cell-${i}-${j}`;
-          data[key] = table.rows[i].cells[j].textContent;
+          const img = table.rows[i].cells[j].querySelector('img');
+          data[key] = img ? img.src.split('/').pop() : '';
         }
       }
       localStorage.setItem('lauraBoard', JSON.stringify(data));
@@ -223,10 +294,13 @@
       let dailyTotals = [0, 0, 0, 0, 0, 0, 0];
       for (let i = 1; i < table.rows.length - 1; i++) {
         for (let j = 1; j <= 7; j++) {
-          const val = table.rows[i].cells[j].textContent;
-          if (pointsMap[val] !== undefined) {
-            total += pointsMap[val];
-            dailyTotals[j - 1] += pointsMap[val];
+          const img = table.rows[i].cells[j].querySelector('img');
+          if (img) {
+            const mood = moods.find(m => m.image === img.src.split('/').pop());
+            if (mood) {
+              total += mood.points;
+              dailyTotals[j - 1] += mood.points;
+            }
           }
         }
       }
@@ -239,9 +313,8 @@
       });
     }
 
-    function playSound(emoji) {
+    function playSound(moodImage) {
       try {
-        // Para todos os sons antes de tocar o novo
         const allSounds = [
           document.getElementById('sound-happy'),
           document.getElementById('sound-good'),
@@ -258,41 +331,69 @@
         });
 
         let sound;
-        switch(emoji) {
-          case '😍':
+        switch(moodImage) {
+          case '3.love.png':
             sound = document.getElementById('sound-happy');
             break;
-          case '🙂':
+          case '2.okay.png':
             sound = document.getElementById('sound-good');
             break;
-          case '😐':
+          case '2.meh.png':
             sound = document.getElementById('sound-neutral');
             break;
-          case '🙁':
+          case '1.sad.png':
             sound = document.getElementById('sound-sad');
             break;
-          case '😭':
+          case '0.crying.png':
             sound = document.getElementById('sound-very-sad');
             break;
         }
         if (sound) {
-          sound.play().catch(() => {
-            // Ignora erros de reprodução de áudio
-          });
+          sound.play().catch(() => {});
         }
-      } catch (e) {
-        // Ignora erros de áudio
-      }
+      } catch (e) {}
     }
 
+    function showEmojiList(cell) {
+      const emojiList = document.getElementById('emojiList');
+      emojiList.innerHTML = '';
+      moods.forEach(mood => {
+        const img = document.createElement('img');
+        img.src = imagePath + mood.image;
+        img.onclick = () => {
+          cell.innerHTML = '';
+          const newImg = document.createElement('img');
+          newImg.src = imagePath + mood.image;
+          newImg.classList.add('pop');
+          cell.appendChild(newImg);
+          playSound(mood.image);
+          saveToStorage();
+          emojiList.classList.remove('open');
+          // Confete se for o mais feliz
+          if (mood.image === '3.love.png') {
+            launchConfetti();
+          }
+        };
+        emojiList.appendChild(img);
+      });
+      const rect = cell.getBoundingClientRect();
+      emojiList.style.left = rect.left + 'px';
+      emojiList.style.top = rect.bottom + 'px';
+      emojiList.classList.add('open');
+    }
+
+    // Fechar a lista quando clicar fora
+    document.addEventListener('click', function(e) {
+      const emojiList = document.getElementById('emojiList');
+      if (!emojiList.contains(e.target) && !e.target.closest('td')) {
+        emojiList.classList.remove('open');
+      }
+    });
+
     table.addEventListener('click', function (e) {
-      const cell = e.target;
-      if (cell.tagName === 'TD' && cell.cellIndex > 0 && cell.parentElement.rowIndex < table.rows.length - 1) {
-        const current = cell.textContent;
-        const next = emojis[(emojis.indexOf(current) + 1) % emojis.length];
-        cell.textContent = next;
-        playSound(next);
-        saveToStorage();
+      const cell = e.target.closest('td');
+      if (cell && cell.cellIndex > 0 && cell.parentElement.rowIndex < table.rows.length - 1) {
+        showEmojiList(cell);
       }
     });
 
@@ -300,7 +401,7 @@
       if (confirm('Deseja limpar o quadro da semana?')) {
         for (let i = 1; i < table.rows.length - 1; i++) {
           for (let j = 1; j < table.rows[i].cells.length; j++) {
-            table.rows[i].cells[j].textContent = '';
+            table.rows[i].cells[j].innerHTML = '';
           }
         }
         saveToStorage();
@@ -314,6 +415,29 @@
       link.href = URL.createObjectURL(blob);
       link.download = 'laura_board.json';
       link.click();
+    }
+
+    // Confete simples
+    function launchConfetti() {
+      const confetti = document.getElementById('confetti');
+      confetti.innerHTML = '';
+      const colors = ['#ffb6b9', '#fcd5ce', '#cdb4db', '#b5ead7', '#f9f871', '#a0c4ff', '#ffd6a5'];
+      const num = 40;
+      for (let i = 0; i < num; i++) {
+        const piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.top = '-20px';
+        piece.style.transform = `rotate(${Math.random()*360}deg)`;
+        piece.style.transition = `top 1.2s cubic-bezier(.4,2,.6,1), left 1.2s`;
+        confetti.appendChild(piece);
+        setTimeout(() => {
+          piece.style.top = 80 + 10*Math.random() + 'vh';
+          piece.style.left = (parseFloat(piece.style.left) + (Math.random()-0.5)*100) + 'vw';
+        }, 10);
+      }
+      setTimeout(() => { confetti.innerHTML = ''; }, 1600);
     }
 
     loadFromStorage();
